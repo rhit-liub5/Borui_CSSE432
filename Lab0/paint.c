@@ -1,5 +1,5 @@
 /* File: paint.c 
-   Author: 
+   Author:Borui Liu
    
 */
 #define CAN_COVERAGE 200
@@ -18,5 +18,27 @@
 //float calcArea(float width, float height, float depth);
 
 int main(int argc, char *argv[]){
-    //your code here
+
+    float width, height, depth;
+    float area;
+    int num;
+
+    /* Prompt user for pool dimensions */
+    printf("Enter pool width: ");
+    scanf("%f", &width);
+
+    printf("Enter pool height: ");
+    scanf("%f", &height);
+
+    printf("Enter pool depth: ");
+    scanf("%f", &depth);
+
+    area = 2 * width * height + 2 * width * depth + 2 * height * depth;
+
+    num = (int)ceil(area / CAN_COVERAGE);
+
+    printf("Total area to cover: %.2f square feet\n", area);
+    printf("Number of paint cans required: %d\n", num);
+
+    return 0;
 }
