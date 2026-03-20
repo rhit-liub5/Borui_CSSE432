@@ -18,5 +18,6 @@ def client_program():
         print("Received from server: ", str(data)) ##打印服务器响应
         message = input("Enter message to send to server: ") ##获取用户输入
     client_socket.close() ##关闭套接字
-if __name__ == '_main_':
+if __name__ == '__main__':
+    print("started")
     client_program()
