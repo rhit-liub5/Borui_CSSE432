@@ -3,7 +3,19 @@ import sys
 
 def server_program():
     host = socket.gethostname() ##获取本地主机名
-    host_ip = socket.gethostbyname(host) ##获取本地主机IP地址
+    #host_ip = socket.gethostbyname(host) ##获取本地主机IP地址
+    
+    name, aliases, ip_addresses = socket.gethostbyname_ex(host) ##获取本地主机的所有IP地址
+    
+    print("Host Name: ", str(name), "Aliases: ", str(aliases), "IP Addresses: ", str(ip_addresses))
+    
+    host_ip = ''
+    i = 0
+    while host_ip == '':
+        if(address.startswith('127.0.0.1')):
+            host_ip = ip_addresses[i]
+        i += 1
+    
     
     if(len(sys.argv) != 2):
         print("Usage: python Socket_example.py <port>")
