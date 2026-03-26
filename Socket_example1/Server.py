@@ -1,5 +1,17 @@
 import socket
 import sys
+import threading
+
+def server_thread(comm_socket, client_num):
+    while True:
+        incoming_data = comm_socket.recv(1024).decode() ##接收数据
+        
+        if not incoming_data:
+            break
+        print("Received from client: ", str(client_num),str(incoming_data))
+        outgoing_data = str(incoming_data).upper() ##获取用户输入作为响应
+        comm_socket.send(outgoing_data.encode()) ##发送数据
+    comm_socket.close() ##关闭通信套接字
 
 def server_program():
     host = socket.gethostname() ##获取本地主机名
@@ -32,19 +44,16 @@ def server_program():
     
     server_listening_socket.listen(5) ##开始监听连接，参数为最大连接数
     
+    client_num = 1
+    
     while True:
         server_comm_socket, address = server_listening_socket.accept() ##接受连接
         
-        print("Connection from: ", str(address))
+        print("Connection from: ", str(client_num), str(address))
         
-        while True:
-            incoming_data = server_comm_socket.recv(1024).decode() ##接收数据
-            
-            if not incoming_data:
-                break
-            print("Received from client: ", str(incoming_data))
-            outgoing_data = str(incoming_data).upper() ##获取用户输入作为响应
-            server_comm_socket.send(outgoing_data.encode()) ##发送数据
-        server_comm_socket.close() ##关闭通信套接字
+        t= threading.Thread(target=server_thread, args=(server_comm_socket, client_num)) ##创建线程处理客户端连接
+        t.start()
+        client_num += 1
+
 if __name__ == '__main__':
     server_program()
