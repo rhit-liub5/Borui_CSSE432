@@ -24,7 +24,7 @@ def server_program():
     host_ip = ''
     i = 0
     while host_ip == '':
-        if(ip_addresses[i].startswith('127.0.0.1')):
+        if(ip_addresses[i].startswith('127.0.1.1')):
             host_ip = ip_addresses[i]
         i += 1
     
