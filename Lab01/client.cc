@@ -14,7 +14,7 @@ string mode;
 int port;
 char* address;
 
-int client(){
+int TCP_client(){
     int client_socket = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in server_addr;
     memset(&server_addr, 0, sizeof(server_addr)); // 清空struck
@@ -29,7 +29,11 @@ int client(){
     cout << "Enter message to send to server: ";
     getline(cin, message);
 
-    while (message != ";;;"){
+    while (true){
+        if (message == ";;;"){
+            send(client_socket, message.c_str(), message.length(), 0);
+            break;
+        }
         send(client_socket, message.c_str(), message.length(), 0);
         // ssize_t send(int sockfd, const void *buf, size_t len, int flags);d
         //不能用string发送，用message.c_str()把string转换成char*
@@ -44,6 +48,31 @@ int client(){
         cout << "Received from server: " << buffer << endl;
         cout << "Enter message to send to server: ";
         getline(cin, message);
+    }
+
+    close(client_socket);
+    return 0;
+}
+
+int UDP_client(){
+    int client_socket = socket(AF_INET, SOCK_DGRAM, 0);
+    struct sockaddr_in server_addr;
+    memset(&server_addr, 0, sizeof(server_addr)); // 清空struck
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(port);
+    server_addr.sin_addr.s_addr = inet_addr(address);
+
+    string message;
+    while (true)
+    {
+        cout << "Enter message to send to server: ";
+        getline(cin, message);
+        if (message == ";;;")
+        {
+            sendto(client_socket, message.c_str(), message.length(), 0, (sockaddr *)&server_addr,sizeof(server_addr));
+            break;
+        }
+        sendto(client_socket, message.c_str(), message.length(), 0, (sockaddr *)&server_addr, sizeof(server_addr));
     }
     close(client_socket);
     return 0;
@@ -71,5 +100,12 @@ int main(int argc, char *argv[])
         cerr << "bad port number\n";
     }
 
-    client();
+    if (mode == "-t")
+    {
+        TCP_client();
+    }
+    if (mode == "-u")
+    {
+        UDP_client();
+    }
 }
