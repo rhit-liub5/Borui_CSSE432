@@ -15,25 +15,72 @@ string mode;
 int port;
 int message_num = 0;
 
+bool send_all(int sockfd, const char *data, int total_len)
+{
+    int sent_total = 0;
+
+    while (sent_total < total_len)
+    {
+        int sent_now = send(sockfd, data + sent_total, total_len - sent_total, 0);
+
+        if (sent_now <= 0)
+        {
+            return false;
+        }
+
+        sent_total += sent_now;
+    }
+
+    return true;
+}
+
 void TCP_server_thread(int comm_socket, int client_num){
     char buffer[1024];
     while(true){
         memset(buffer, 0, sizeof(buffer));
         int incoming_data = recv(comm_socket,buffer,sizeof(buffer),0);
         if (incoming_data <= 0){
+            cerr << "no data recive" << endl;
             break;
-        }else{
-            buffer[incoming_data] = '\0';
-            message_num++;
         }
-        cout << "Received from client " << message_num << ": "<< buffer <<endl;
+        buffer[incoming_data] = '\0';
+        if (string(buffer) == ";;;"){
+            cout << "Received the following message from client:" << endl
+                 << endl;
+            cout << "\";;;\"" << endl
+                 << endl;
+            cout << "Client finished, now waiting to service another client..."
+                 << endl
+                 << endl;
+            cout << "***********************************************************" << endl
+                 << endl;
+            break;
+        }
+        message_num++;
+
+        cout << "Received the following message from client:" << endl
+             << endl;
+        cout << "\"" << buffer << "\"" << endl
+             << endl;
         for (int i = 0; buffer[i]; i++)
         {
             buffer[i] = toupper(buffer[i]);
         }
-        send(comm_socket,buffer,strlen(buffer),0);
+        string response = to_string(message_num) + " " + string(buffer);
+        cout << "Now sending message " << message_num
+             << " back having changed the string to upper case..."
+             << endl
+             << endl;
+        if (!send_all(comm_socket, response.c_str(), response.length()))
+        {
+            cerr << "send failed" << endl;
+            break;
+        }
     }
-    close(comm_socket);
+    if (close(comm_socket) < 0)
+    {
+        cerr << "close failed" << endl;
+    }
 }
 
 
@@ -41,10 +88,15 @@ void TCP_server_thread(int comm_socket, int client_num){
 int TCP_server(){
     char host_name[256];
     if (gethostname(host_name,256) == -1){
+        cerr << "Error getting hostname" << endl;
         return -1;
     }
 
     hostent *host = gethostbyname(host_name);
+    if (host == nullptr){
+        cerr << "Error getting host information" << endl;
+        return -1;
+    }
     // struct hostent
     // {
     //     char *h_name;
@@ -89,10 +141,16 @@ int TCP_server(){
     int server_listening_socket = socket(AF_INET, SOCK_STREAM, 0);//创建套接字
     if (server_listening_socket < 0)
     {
+        cerr << "socket create error" << endl;
         return -1;
     }
     int opt = 1;
     setsockopt(server_listening_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)); // 设置套接字选项，允许重用地址
+    if (opt < 0)
+    {
+        cerr << "setsockopt failed" << endl;
+        return -1;
+    }
 
     struct sockaddr_in server_addr;
     memset(&server_addr, 0, sizeof(server_addr)); //清空struck
@@ -108,11 +166,27 @@ int TCP_server(){
     //     char sin_zero[8];        // 填充
     // };
 
-    bind(server_listening_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)); // 绑定套接字到地址和端口
+    int bin = bind(server_listening_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)); // 绑定套接字到地址和端口
     //(struct sockaddr *)&server_addr 将server_addr转换成更加通用的sockaddr类型。bind只接受这个类型
+    if (bin < 0){
+        cerr << "bind failed" << endl;
+        return -1; 
+    }
+    int lis = listen(server_listening_socket, 5); //开始监听连接，参数为最大连接数
+    if (lis < 0){
+        cerr << "listen failed" << endl;
+        return -1;
+    }
 
-    listen(server_listening_socket, 5); //开始监听连接，参数为最大连接数
-    
+    cout << "Serial Server on host 0.0.0.0/0.0.0.0 is listening on port "
+         << port << endl
+         << endl;
+    cout << "Serial Server starting, listening on port "
+         << port << endl
+         << endl;
+    cout << "***********************************************************" << endl
+         << endl;
+
     int client_num = 1;
 
     while (true){
@@ -121,8 +195,19 @@ int TCP_server(){
         // socklen_t 是一种专门用来表示 socket 地址长度的类型。
         // 本质上它其实就是一个整数类型（类似 int），只是专门用于 socket API。 
         int server_comm_socket = accept(server_listening_socket, (struct sockaddr *)&client_addr, &client_len);
-        cout << "Connection from: " << client_num << " " << inet_ntoa(client_addr.sin_addr) 
-             << "\n" << "Port: " << ntohs(client_addr.sin_port) << endl;
+        if (server_comm_socket < 0){
+            cerr << "accept error" << endl;
+            continue; // 接受连接失败，继续等待下一个连接
+        }
+        cout << "Received connection request from /"
+             << inet_ntoa(client_addr.sin_addr) << endl
+             << endl;
+
+        cout << "***********************************************************" << endl
+             << endl;
+
+        cout << "Now listening for incoming messages..." << endl
+             << endl;
         thread t(TCP_server_thread, server_comm_socket, client_num);
         t.detach();
 
@@ -146,10 +231,16 @@ int UDP_server(){
     char host_name[256];
     if (gethostname(host_name, 256) == -1)
     {
+        cerr << "get hostname error" << endl;
         return -1;
     }
 
     hostent *host = gethostbyname(host_name);
+    if (host == nullptr)
+    {
+        cerr << "Error getting host information" << endl;
+        return -1;
+    }
     // struct hostent
     // {
     //     char *h_name;
@@ -197,10 +288,15 @@ int UDP_server(){
     int server_listening_socket = socket(AF_INET, SOCK_DGRAM, 0); // 创建套接字
     if (server_listening_socket < 0)
     {
+        cerr << "socket create error" << endl;
         return -1;
     }
     int opt = 1;
-    setsockopt(server_listening_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)); // 设置套接字选项，允许重用地址
+    if (setsockopt(server_listening_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
+    {
+        cerr << "setsockopt failed" << endl;
+         return -1;
+    }
 
     struct sockaddr_in server_addr;
     memset(&server_addr, 0, sizeof(server_addr)); // 清空struck
@@ -216,8 +312,11 @@ int UDP_server(){
     //     char sin_zero[8];        // 填充
     // };
 
-    bind(server_listening_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)); // 绑定套接字到地址和端口
+    int bin = bind(server_listening_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)); // 绑定套接字到地址和端口
     //(struct sockaddr *)&server_addr 将server_addr转换成更加通用的sockaddr类型。bind只接受这个类型
+    if (bin < 0){
+        cerr << "bind faild" << endl;
+    }
     while (true)
     {
         struct sockaddr_in client_addr;
@@ -232,7 +331,6 @@ int UDP_server(){
         buffer[incoming_data] = '\0';
         message_num++;
         char *heap_buffer = new char[incoming_data + 1];
-
         memcpy(heap_buffer, buffer, incoming_data);
         heap_buffer[incoming_data] = '\0'; 
         std::thread t(UDP_server_thread, heap_buffer);
@@ -253,12 +351,14 @@ int main(int argc, char *argv[])
     if (mode != "-t" && mode != "-u")
     {
         cerr << "You need a right model -t or -u\n";
+        return 1;
     }
 
     port = atoi(argv[2]);
     if (port < 0 || port > 65535)
     {
         cerr << "bad port number\n";
+        return 1;
     }
     
     if (mode == "-t"){
