@@ -108,7 +108,7 @@ int TCP_server(){
     int i = 0;
     while (host->h_addr_list[i] != NULL){
         cout << "Host name: " << host->h_name << "\n" <<
-                "Aliases: " << host->h_aliases[i] << "\n" <<
+                // "Aliases: " << host->h_aliases[i] << "\n" <<
                 "IP Address: " << inet_ntoa(*(struct in_addr *)host->h_addr_list[i]) << endl;
         i++;
     }
@@ -125,13 +125,15 @@ int TCP_server(){
     //     char * → struct in_addr * → struct in_addr → inet_ntoa → string
 
     string host_ip = "";
-    i = 0;
-    while (host_ip == ""){
-        if (strcmp(inet_ntoa(*(struct in_addr *)host->h_addr_list[i]),"127.0.1.1") == 0){
-            host_ip = inet_ntoa(*(struct in_addr *)host->h_addr_list[i]);
+    for (int i = 0; host->h_addr_list[i] != NULL; i++) {
+        string ip = inet_ntoa(*(struct in_addr *)host->h_addr_list[i]);
+        if (ip != "127.0.0.1") {
+            host_ip = ip;
             break;
         }
-        i++;
+    }
+    if (host_ip == "") {
+        host_ip = "127.0.0.1";
     }
 
     cout << "Host name: " << host->h_name << "\n"
@@ -145,8 +147,7 @@ int TCP_server(){
         return -1;
     }
     int opt = 1;
-    setsockopt(server_listening_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)); // 设置套接字选项，允许重用地址
-    if (opt < 0)
+    if (setsockopt(server_listening_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
     {
         cerr << "setsockopt failed" << endl;
         return -1;
@@ -166,9 +167,8 @@ int TCP_server(){
     //     char sin_zero[8];        // 填充
     // };
 
-    int bin = bind(server_listening_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)); // 绑定套接字到地址和端口
     //(struct sockaddr *)&server_addr 将server_addr转换成更加通用的sockaddr类型。bind只接受这个类型
-    if (bin < 0){
+    if (::bind(server_listening_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0){
         cerr << "bind failed" << endl;
         return -1; 
     }
@@ -254,7 +254,7 @@ int UDP_server(){
     while (host->h_addr_list[i] != NULL)
     {
         cout << "Host name: " << host->h_name << "\n"
-             << "Aliases: " << host->h_aliases[i] << "\n"
+            //  << "Aliases: " << host->h_aliases[i] << "\n"
              << "IP Address: " << inet_ntoa(*(struct in_addr *)host->h_addr_list[i]) << endl;
         i++;
     }
@@ -271,15 +271,15 @@ int UDP_server(){
     //     char * → struct in_addr * → struct in_addr → inet_ntoa → string
 
     string host_ip = "";
-    i = 0;
-    while (host_ip == "")
-    {
-        if (strcmp(inet_ntoa(*(struct in_addr *)host->h_addr_list[i]), "127.0.1.1") == 0)
-        {
-            host_ip = inet_ntoa(*(struct in_addr *)host->h_addr_list[i]);
+    for (int i = 0; host->h_addr_list[i] != NULL; i++) {
+        string ip = inet_ntoa(*(struct in_addr *)host->h_addr_list[i]);
+        if (ip != "127.0.0.1") {
+            host_ip = ip;
             break;
         }
-        i++;
+    }
+    if (host_ip == "") {
+        host_ip = "127.0.0.1";
     }
 
     cout << "Host name: " << host->h_name << "\n"
@@ -313,9 +313,8 @@ int UDP_server(){
     //     char sin_zero[8];        // 填充
     // };
 
-    int bin = bind(server_listening_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)); // 绑定套接字到地址和端口
-    //(struct sockaddr *)&server_addr 将server_addr转换成更加通用的sockaddr类型。bind只接受这个类型
-    if (bin < 0){
+    if (::bind(server_listening_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0){
+        //(struct sockaddr *)&server_addr 将server_addr转换成更加通用的sockaddr类型。bind只接受这个类型
         cerr << "bind faild" << endl;
     }
     while (true)
