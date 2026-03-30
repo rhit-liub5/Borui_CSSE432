@@ -208,9 +208,9 @@ int TCP_server(){
 
         cout << "Now listening for incoming messages..." << endl
              << endl;
-        // thread t(TCP_server_thread, server_comm_socket, client_num);
-        // t.detach();
-        TCP_server_thread(server_comm_socket, client_num);
+        thread t(TCP_server_thread, server_comm_socket, client_num);
+        t.detach();
+        // TCP_server_thread(server_comm_socket, client_num);
 
         client_num++;
     }
