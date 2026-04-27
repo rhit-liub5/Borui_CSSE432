@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+peer_data/
+tracker
+peer
+.DS_Store
