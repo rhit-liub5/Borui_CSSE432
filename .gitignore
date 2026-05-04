@@ -11,6 +11,7 @@
 # 可执行文件
 server
 client
+proxy
 
 # build 文件夹
 build/
