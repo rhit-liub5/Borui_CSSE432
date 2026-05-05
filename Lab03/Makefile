@@ -1,13 +1,10 @@
 CXX = g++
-CXXFLAGS = -std=c++11 -Wall -Wextra -pedantic -pthread
-TARGET = proxy
+CXXFLAGS = -std=c++11 -Wall -Wextra -pthread
 
-all: $(TARGET)
+all: proxy
 
-$(TARGET): proxy.cpp
-	$(CXX) $(CXXFLAGS) -o $(TARGET) proxy.cpp
+proxy: proxy.cpp
+	$(CXX) $(CXXFLAGS) proxy.cpp -o proxy
 
 clean:
-	rm -f $(TARGET)
-
-.PHONY: all clean
+	rm -f proxy
