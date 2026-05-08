@@ -1,4 +1,4 @@
-"""Upload server that lets other peers request files or pieces."""
+"""Upload server that lets other peers request complete files."""
 
 from __future__ import annotations
 
@@ -22,13 +22,6 @@ class PeerRequestHandler(socketserver.BaseRequestHandler):
             if command == "GET_FILE" and len(parts) == 2:
                 data = self.file_manager.read_file(parts[1])
                 send_line(self.request, f"OK {len(data)}")
-                self.request.sendall(data)
-                return
-
-            if command == "GET_PIECE" and len(parts) == 3:
-                filename, piece_id = parts[1], int(parts[2])
-                data = self.file_manager.read_piece(filename, piece_id)
-                send_line(self.request, f"PIECE {shlex.quote(filename)} {piece_id} {len(data)}")
                 self.request.sendall(data)
                 return
 

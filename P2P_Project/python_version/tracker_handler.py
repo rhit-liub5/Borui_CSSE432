@@ -23,28 +23,25 @@ def handle_command(state: TrackerState, line: str) -> list[str]:
             state.register_peer(peer_id, ip, port)
             return [f"OK REGISTERED {peer_id}"]
 
-        if command == "ADD_FILE" and len(parts) == 6:
+        if command == "ADD_FILE" and len(parts) == 4:
             peer_id, filename = parts[1], parts[2]
-            filesize, piece_size, piece_count = map(int, parts[3:6])
-            state.add_file(peer_id, filename, filesize, piece_size, piece_count)
+            filesize = int(parts[3])
+            state.add_file(peer_id, filename, filesize)
             return [f"OK FILE_ADDED {filename}"]
 
-        if command == "HAVE" and len(parts) == 4:
-            peer_id, filename, piece_id = parts[1], parts[2], int(parts[3])
-            state.have_piece(peer_id, filename, piece_id)
-            return [f"OK HAVE {filename} {piece_id}"]
+        if command == "HAVE" and len(parts) == 3:
+            peer_id, filename = parts[1], parts[2]
+            state.have_file(peer_id, filename)
+            return [f"OK HAVE {filename}"]
 
         if command == "QUERY" and len(parts) == 2:
             filename = parts[1]
-            info, rows = state.query(filename)
+            info, peers = state.query(filename)
             if info is None:
                 return [f"NOT_FOUND {filename}"]
-            response = [
-                f"PEERS {info.filename} {info.filesize} {info.piece_size} {info.piece_count}"
-            ]
-            for peer, pieces in rows:
-                piece_list = ",".join(str(piece) for piece in pieces)
-                response.append(f"{peer.peer_id} {peer.ip} {peer.port} {piece_list}")
+            response = [f"PEERS {info.filename} {info.filesize}"]
+            for peer in peers:
+                response.append(f"{peer.peer_id} {peer.ip} {peer.port}")
             return response
 
         if command == "LIST":
@@ -52,7 +49,7 @@ def handle_command(state: TrackerState, line: str) -> list[str]:
             peers = state.list_peers()
             response = [f"PEER_COUNT {len(peers)}", f"FILE_COUNT {len(files)}"]
             response.extend(
-                f"FILE {info.filename} {info.filesize} {info.piece_size} {info.piece_count}"
+                f"FILE {info.filename} {info.filesize}"
                 for info in files
             )
             return response

@@ -17,9 +17,7 @@ class PeerInfo:
 class FileInfo:
     filename: str
     filesize: int
-    piece_size: int
-    piece_count: int
-    pieces: dict[int, set[str]] = field(default_factory=dict)
+    owners: set[str] = field(default_factory=set)
 
 
 class TrackerState:
@@ -32,54 +30,35 @@ class TrackerState:
         with self._lock:
             self.peers[peer_id] = PeerInfo(peer_id, ip, int(port))
 
-    def add_file(
-        self,
-        peer_id: str,
-        filename: str,
-        filesize: int,
-        piece_size: int,
-        piece_count: int,
-    ) -> None:
+    def add_file(self, peer_id: str, filename: str, filesize: int) -> None:
         with self._lock:
             info = self.files.get(filename)
             if info is None:
-                info = FileInfo(filename, int(filesize), int(piece_size), int(piece_count))
+                info = FileInfo(filename, int(filesize))
                 self.files[filename] = info
             else:
                 info.filesize = int(filesize)
-                info.piece_size = int(piece_size)
-                info.piece_count = int(piece_count)
 
-            for piece_id in range(info.piece_count):
-                info.pieces.setdefault(piece_id, set()).add(peer_id)
+            info.owners.add(peer_id)
 
-    def have_piece(self, peer_id: str, filename: str, piece_id: int) -> None:
+    def have_file(self, peer_id: str, filename: str) -> None:
         with self._lock:
             if filename not in self.files:
                 raise KeyError(f"unknown file: {filename}")
-            info = self.files[filename]
-            piece = int(piece_id)
-            if piece < 0 or piece >= info.piece_count:
-                raise ValueError(f"piece_id out of range: {piece}")
-            info.pieces.setdefault(piece, set()).add(peer_id)
+            self.files[filename].owners.add(peer_id)
 
-    def query(self, filename: str) -> tuple[FileInfo | None, list[tuple[PeerInfo, list[int]]]]:
+    def query(self, filename: str) -> tuple[FileInfo | None, list[PeerInfo]]:
         with self._lock:
             info = self.files.get(filename)
             if info is None:
                 return None, []
 
-            peer_pieces: dict[str, list[int]] = {}
-            for piece_id, owners in info.pieces.items():
-                for peer_id in owners:
-                    peer_pieces.setdefault(peer_id, []).append(piece_id)
-
-            rows: list[tuple[PeerInfo, list[int]]] = []
-            for peer_id, pieces in sorted(peer_pieces.items()):
+            owners: list[PeerInfo] = []
+            for peer_id in sorted(info.owners):
                 peer = self.peers.get(peer_id)
                 if peer is not None:
-                    rows.append((peer, sorted(pieces)))
-            return info, rows
+                    owners.append(peer)
+            return info, owners
 
     def list_files(self) -> list[FileInfo]:
         with self._lock:
