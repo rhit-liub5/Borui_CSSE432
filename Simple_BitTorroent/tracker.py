@@ -5,6 +5,7 @@ HOST = "127.0.0.1"
 PORT = 9000
 
 file_data = {}
+lock = threading.Lock()
 
 def recv_all(conn):
     data = b""
@@ -40,16 +41,17 @@ def pro_register(parts):
 
     filenames = parts[4:]
 
-    for filename in filenames:
-        if filename not in file_data:
-            file_data[filename] = []
+    with lock:
+        for filename in filenames:
+            if filename not in file_data:
+                file_data[filename] = []
 
-        peer_info = (peer_id, ip, port)
+            peer_info = (peer_id, ip, port)
 
-        if peer_info not in file_data[filename]:
-            file_data[filename].append(peer_info)
+            if peer_info not in file_data[filename]:
+                file_data[filename].append(peer_info)
 
-    print_file_data()
+        print_file_data()
 
     return "OK REGISTERED"
 
@@ -58,16 +60,16 @@ def pro_query(parts):
         return "ERROR bad QUERY format"
 
     filename = parts[1]
+    with lock:
+        if filename not in file_data:
+            return "NOT_FOUND"
 
-    if filename not in file_data:
-        return "NOT_FOUND"
+        peers = file_data[filename]
 
-    peers = file_data[filename]
+        response_lines = []
 
-    response_lines = []
-
-    for peer_id, ip, port in peers:
-        response_lines.append(f"FOUND {peer_id} {ip} {port}")
+        for peer_id, ip, port in peers:
+            response_lines.append(f"FOUND {peer_id} {ip} {port}")
 
     response_lines.append("END")
 
@@ -86,16 +88,16 @@ def pro_update(parts):
         return "ERROR Invalid port"
 
     filename = parts[4]
+    with lock:
+        if filename not in file_data:
+            file_data[filename] = []
 
-    if filename not in file_data:
-        file_data[filename] = []
+        peer_info = (peer_id, ip, port)
 
-    peer_info = (peer_id, ip, port)
+        if peer_info not in file_data[filename]:
+            file_data[filename].append(peer_info)
 
-    if peer_info not in file_data[filename]:
-        file_data[filename].append(peer_info)
-
-    print_file_data()
+        print_file_data()
 
     return "OK UPDATED"
 
