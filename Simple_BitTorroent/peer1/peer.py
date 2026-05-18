@@ -7,7 +7,7 @@ TRACKER_HOST = "127.0.0.1"
 TRACKER_PORT = 9000
 
 
-def scan_files(folder):
+def find_files(folder):
     filenames = []
 
     if not os.path.exists(folder):
@@ -23,7 +23,7 @@ def scan_files(folder):
 
 
 def send_register(peer_id, peer_ip, peer_port, shared_folder):
-    filenames = scan_files(shared_folder)
+    filenames = find_files(shared_folder)
 
     if len(filenames) == 0:
         print("No files to register.")
