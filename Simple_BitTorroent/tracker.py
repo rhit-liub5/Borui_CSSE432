@@ -1,5 +1,6 @@
 import socket
 import threading
+import protocol
 
 HOST = "127.0.0.1"
 PORT = 9000
@@ -29,7 +30,7 @@ def print_file_data():
 
 def pro_register(parts):
     if len(parts) < 5:
-        return "ERROR bad REGISTER format"
+        return protocol.error("bad REGISTER format")
 
     peer_id = parts[1]
     ip = parts[2]
@@ -37,7 +38,7 @@ def pro_register(parts):
     try:
         port = int(parts[3])
     except ValueError:
-        return "ERROR Invalid port"
+        return protocol.error("Invalid port")
 
     filenames = parts[4:]
 
@@ -53,16 +54,16 @@ def pro_register(parts):
 
         print_file_data()
 
-    return "OK REGISTERED"
+    return protocol.ok_register()
 
 def pro_query(parts):
     if len(parts) != 2:
-        return "ERROR bad QUERY format"
+        return protocol.error("bad QUERY format")
 
     filename = parts[1]
     with lock:
         if filename not in file_data:
-            return "NOT_FOUND"
+            return protocol.not_found()
 
         peers = file_data[filename]
 
@@ -77,7 +78,7 @@ def pro_query(parts):
 
 def pro_update(parts):
     if len(parts) != 5:
-        return "ERROR bad UPDATE format"
+        return protocol.error("bad UPDATE format")
 
     peer_id = parts[1]
     ip = parts[2]
@@ -85,7 +86,7 @@ def pro_update(parts):
     try:
         port = int(parts[3])
     except ValueError:
-        return "ERROR Invalid port"
+        return protocol.error("Invalid port")
 
     filename = parts[4]
     with lock:
@@ -99,7 +100,7 @@ def pro_update(parts):
 
         print_file_data()
 
-    return "OK UPDATED"
+    return protocol.ok_update()
 
 def do_client(conn, addr):
     print(f"[CONNECTED] {addr} connected")
@@ -118,7 +119,7 @@ def do_client(conn, addr):
         elif command == "UPDATE":
             response = pro_update(parts)
         else:
-            response = "ERROR Unknown command"
+            response = protocol.error("Unknown command")
 
         conn.sendall((response + "\n").encode())
     conn.close()
