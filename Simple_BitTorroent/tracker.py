@@ -2,6 +2,7 @@ import socket
 import threading
 import protocol
 
+
 HOST = "127.0.0.1"
 PORT = 9000
 
@@ -19,16 +20,7 @@ def recv_all(conn):
             break
     return data.decode().strip()
 
-def print_file_data():
-    print("\n===== FILE TABLE =====")
-    if not file_data:
-        print("(empty)")
-    else:
-        for filename, peers in file_data.items():
-            print(f"{filename}: {peers}")
-    print("======================\n")
-
-def pro_register(parts):
+def register(parts):
     if len(parts) < 5:
         return protocol.error("bad REGISTER format")
 
@@ -52,11 +44,9 @@ def pro_register(parts):
             if peer_info not in file_data[filename]:
                 file_data[filename].append(peer_info)
 
-        print_file_data()
-
     return protocol.ok_register()
 
-def pro_query(parts):
+def query(parts):
     if len(parts) != 2:
         return protocol.error("bad QUERY format")
 
@@ -69,18 +59,18 @@ def pro_query(parts):
 
         response_lines = []
 
-        for peer_id, ip, port in peers:
-            response_lines.append(f"FOUND {peer_id} {ip} {port}")
+        for peer_name, ip, port in peers:
+            response_lines.append(protocol.found(peer_name, ip, port).strip())
 
-    response_lines.append("END")
+    response_lines.append(protocol.end().strip())
 
-    return "\n".join(response_lines)
+    return "\n".join(response_lines) + "\n"
 
-def pro_update(parts):
+def update(parts):
     if len(parts) != 5:
         return protocol.error("bad UPDATE format")
 
-    peer_id = parts[1]
+    peer_name = parts[1]
     ip = parts[2]
 
     try:
@@ -93,16 +83,14 @@ def pro_update(parts):
         if filename not in file_data:
             file_data[filename] = []
 
-        peer_info = (peer_id, ip, port)
+        peer_info = (peer_name, ip, port)
 
         if peer_info not in file_data[filename]:
             file_data[filename].append(peer_info)
 
-        print_file_data()
-
     return protocol.ok_update()
 
-def do_client(conn, addr):
+def client(conn, addr):
     print(f"[CONNECTED] {addr} connected")
     message = recv_all(conn)
 
@@ -113,23 +101,24 @@ def do_client(conn, addr):
         command = parts[0]
 
         if command == "REGISTER":
-            response = pro_register(parts)
+            response = register(parts)
         elif command == "QUERY":
-            response = pro_query(parts)
+            response = query(parts)
         elif command == "UPDATE":
-            response = pro_update(parts)
+            response = update(parts)
         else:
             response = protocol.error("Unknown command")
 
-        conn.sendall((response + "\n").encode())
+        conn.sendall(response.encode())
     conn.close()
     print(f"[DISCONNECTED] {addr} disconnected")
 
 def main():
+    
     print(f"Starting tracker on host:{HOST} port:{PORT}")
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
-    # server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     
     server_socket.bind((HOST, PORT))
     server_socket.listen()
@@ -139,8 +128,8 @@ def main():
         conn, addr = server_socket.accept()
 
         client_thread = threading.Thread(
-            target=do_client,
-            args=(conn, addr)
+            target = client,
+            args = (conn, addr)
         )
 
         client_thread.start()

@@ -32,14 +32,14 @@ def find_files(folder):
 
     return filenames
 
-def send_register(peer_id, peer_ip, peer_port, shared_folder):
+def send_register(peer_name, peer_ip, peer_port, shared_folder):
     filenames = find_files(shared_folder)
 
     if len(filenames) == 0:
         print("No files to register.")
         return
 
-    command = f"REGISTER {peer_id} {peer_ip} {peer_port} " + " ".join(filenames) + "\n"
+    command = protocol.register(peer_name, peer_ip, peer_port, filenames)
     ## with 的好处是：用完之后会自动关闭 socket。
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((TRACKER_HOST, TRACKER_PORT))
@@ -58,19 +58,19 @@ def client(conn, addr, shared_folder):
         parts = command.split()
 
         if len(parts) != 2 or parts[0] != "GET":
-            conn.sendall(b"ERROR Invalid command\n")
+            conn.sendall(protocol.error("Invalid command").encode())
             return
 
         filename = parts[1]
         file_path = os.path.join(shared_folder, filename)
 
         if not os.path.isfile(file_path):
-            conn.sendall(b"ERROR File not found\n")
+            conn.sendall(protocol.error("File not found").encode())
             return
 
         filesize = os.path.getsize(file_path)
 
-        header = f"OK {filesize}\n"
+        header = protocol.ok_file(filesize)
         conn.sendall(header.encode())
 
         with open(file_path, "rb") as f:
@@ -109,7 +109,7 @@ def server(peer_ip, peer_port, shared_folder):
         client_thread.start()
 
 def query_tracker(filename):
-    command = f"QUERY {filename}\n"
+    command = protocol.query(filename)
     peers = []
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -118,20 +118,20 @@ def query_tracker(filename):
 
         while True:
             line = recv_all(s)
-            if line == "NOT_FOUND":
+            if line == protocol.not_found().strip():
                 return []
-            if line == "END":
+            if line == protocol.end().strip():
                 break
             parts = line.split()
             if len(parts) == 4 and parts[0] == "FOUND":
-                peer_id = parts[1]
+                peer_name = parts[1]
                 ip = parts[2]
                 port = int(parts[3])
-                peers.append((peer_id, ip, port))
+                peers.append((peer_name, ip, port))
     return peers
 
 def download_from_peer(ip, port, filename, shared_folder):
-    command = f"GET {filename}\n"
+    command = protocol.get(filename)
 
     file_path = os.path.join(shared_folder, filename)
 
@@ -167,8 +167,8 @@ def download_from_peer(ip, port, filename, shared_folder):
             print("Download incomplete.")
             return False
 
-def send_update(peer_id, peer_ip, peer_port, filename):
-    command = f"UPDATE {peer_id} {peer_ip} {peer_port} {filename}\n"
+def send_update(peer_name, peer_ip, peer_port, filename):
+    command = protocol.update(peer_name, peer_ip, peer_port, filename)
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((TRACKER_HOST, TRACKER_PORT))
@@ -177,7 +177,7 @@ def send_update(peer_id, peer_ip, peer_port, filename):
         response = s.recv(1024).decode().strip()
         print("Tracker response:", response)
 
-def download_file(filename, shared_folder, peer_id, peer_ip, peer_port):
+def download_file(filename, shared_folder, peer_name, peer_ip, peer_port):
     peers = query_tracker(filename)
 
     if len(peers) == 0:
@@ -188,34 +188,35 @@ def download_file(filename, shared_folder, peer_id, peer_ip, peer_port):
     for i, peer in enumerate(peers):
         print(i, peer)
 
-    target_peer_id, target_ip, target_port = peers[0]
+    target_peer_name, target_ip, target_port = peers[0]
 
-    print("Downloading from:", target_peer_id, target_ip, target_port)
+    print("Downloading from:", target_peer_name, target_ip, target_port)
 
     success = download_from_peer(target_ip, target_port, filename, shared_folder)
 
     if success:
-        send_update(peer_id, peer_ip, peer_port, filename)
+        send_update(peer_name, peer_ip, peer_port, filename)
 
 def main():
     if len(sys.argv) != 4:
-        print("Usage: python peer.py <peer_id> <peer_port> <shared_folder>")
+        print("Usage: python peer.py <peer_name> <peer_port> <shared_folder>")
         return
 
-    peer_id = sys.argv[1]
+    peer_name = sys.argv[1]
     peer_ip = "127.0.0.1"
     peer_port = int(sys.argv[2])
     shared_folder = sys.argv[3]
 
-    print("Peer ID:", peer_id)
+    print("Peer ID:", peer_name)
     print("Peer IP:", peer_ip)
     print("Peer Port:", peer_port)
     print("Shared folder:", shared_folder)
 
-    send_register(peer_id, peer_ip, peer_port, shared_folder)
+    send_register(peer_name, peer_ip, peer_port, shared_folder)
     server_thread = threading.Thread(
         target=server,
-        args=(peer_ip, peer_port, shared_folder)
+        args=(peer_ip, peer_port, shared_folder),
+        daemon=True
     )
 
     server_thread.start()
@@ -226,7 +227,7 @@ def main():
         if filename == "quit":
             break
 
-        download_file(filename, shared_folder, peer_id, peer_ip, peer_port)
+        download_file(filename, shared_folder, peer_name, peer_ip, peer_port)
 
 
 if __name__ == "__main__":
