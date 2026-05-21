@@ -48,7 +48,7 @@ def send_register(peer_name, peer_ip, peer_port, shared_folder):
         response = s.recv(1024).decode().strip()
         print("Tracker response:", response)
 
-def client(conn, addr, shared_folder):
+def sendfile(conn, addr, shared_folder):
     print("Peer connected:", addr)
 
     try:
@@ -102,7 +102,7 @@ def server(peer_ip, peer_port, shared_folder):
         conn, addr = server_socket.accept()
 
         client_thread = threading.Thread(
-            target=client,
+            target=sendfile,
             args=(conn, addr, shared_folder)
         )
 
