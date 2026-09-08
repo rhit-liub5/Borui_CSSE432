@@ -25,3 +25,6 @@ build/
 
 # Linux
 *.swp
+*.gemini
+*.codegraph
+*.ua
